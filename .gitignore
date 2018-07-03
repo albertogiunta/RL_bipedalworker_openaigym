@@ -37,3 +37,10 @@ tutorial/*.html
 # PyCharm project files
 .idea
 vizdoom.ini
+
+pybox2d_dev/build/*
+pybox2d_dev/dist/*
+pybox2d_dev/*.py[oc]
+pybox2d_dev/*.swo
+pybox2d_dev/*.swp
+pybox2d_dev/*.so
