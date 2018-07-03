@@ -10,7 +10,7 @@ class BipedalAgent(object):
     def __init__(self, action_space, state):
         self.action_space = action_space
         self.state_size = len(state)
-        self.action_size = len(action_space)
+        self.action_size = 4
         self.learning_rate = 0.001
         self.model = self._build_model()
 
@@ -31,10 +31,8 @@ if __name__ == '__main__':
     env.seed(0)
     env.render()
 
-    print env.action_space
     state = np.reshape(env.reset(), [1, 24])
     agent = BipedalAgent(env.action_space, state)
-
 
     episode_count = 100
     reward = 0
