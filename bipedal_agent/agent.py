@@ -13,37 +13,37 @@ EPISODES = 1000
 
 class BipedalAgent(object):
 
-    def __init__(self, action_space):
+    def __init__(self, action_space, state_size, step_size, joints_number):
         self.action_space = action_space
-        self.state_size = 24
+        self.input_size = state_size
 
-        self.step_size = 0.5
-        self.joint_number = 4
-        self.action_size = 2 / self.step_size * self.joint_number
+        self.step_size = step_size
+        self.action_size = 2 / self.step_size * joints_number
 
         self.memory = deque(maxlen=2000)
 
         self.gamma = 0.95  # discount rate
         self.epsilon = 1.0  # exploration rate
         self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995
+        self.epsilon_decay = 0.997
         self.learning_rate = 0.001
 
         self.model = self._build_model()
 
     def _build_model(self):
         model = Sequential()
-        model.add(Dense(24, input_dim=self.state_size, activation='relu'))
+        model.add(Dense(24, input_dim=self.input_size, activation='relu'))
         model.add(Dense(24, activation='relu'))
-        model.add(Dense(self.action_size, activation='linear'))
+        model.add(Dense(16, activation='linear'))
         model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
         return model
 
     def take_four_maxes(self, array):
         # Matrice 4*3, dove ogni riga contiene [ reward, azione ottima, indice dell'azione ] per ogni giunto
-        maxes = np.zeros(4, 3)
+        maxes = np.zeros((4, 3))
         half = len(array) / 2
-        for joint_index, a in np.reshape(array, (4, 20)):
+        packeted_output = np.reshape(array, (4, 4))
+        for joint_index, a in enumerate(packeted_output):
 
             # Indice sull'array di 20 dell'elemento con reward massima
             max_index = np.argmax(a)
@@ -72,15 +72,14 @@ class BipedalAgent(object):
             # Salvo l'indice globale (su 80) dell'azione ottimale
             maxes[joint_index][2] = max_index + (joint_index * max_index)
 
-        print(maxes)
         return maxes
 
     def act(self, state):
         if np.random.rand() <= self.epsilon:
-            print "random"
+            # print "random"
             return self.action_space.sample()
 
-        print "NOT random"
+        # print "NOT random"
         act_values = self.model.predict(state)
         # Restituiamo solo l'array che definisce l'azione ottima globale
         return np.transpose(self.take_four_maxes(act_values))[1]
@@ -93,18 +92,19 @@ class BipedalAgent(object):
         for state, action, reward, next_state, done in minibatch:
             # Inizializza q_reward come un array di 4 elementi uguali
             q_reward = [reward] * 4
+            # Prendiamo le reward dell'azione ottima allo stato successivo
+            maxes = self.take_four_maxes(self.model.predict(next_state)[0])
+
             if not done:
-                # Prendiamo le reward dell'azione ottima allo stato successivo
-                maxes = self.take_four_maxes(self.model.predict(next_state)[0])
                 # Aggiorniamo la nostra q_reward con la Q function
-                q_reward = (reward + self.gamma * (maxes[0]))
+                q_reward = (reward + self.gamma * (np.transpose(maxes)[0]))
 
             # Prendo l'output che la rete mi da attualmente
             nn_output = self.model.predict(state)
 
             # Modifico l'output ottenuto con la q_reward calcolata
-            for index, max in maxes:
-                nn_output[0][max[2]] = q_reward[index]
+            for index, max in enumerate(maxes):
+                nn_output[0][int(max[2])] = q_reward[index]
 
             # Addestro la rete con l'output ricalcolato
             self.model.fit(state, nn_output, epochs=1, verbose=0)
@@ -119,18 +119,42 @@ if __name__ == '__main__':
     env.render()
 
     state_size = env.observation_space.shape[0]
-    agent = BipedalAgent(env.action_space)
+    agent = BipedalAgent(env.action_space, state_size, step_size=0.5, joints_number=4)
 
     episode_count = 100
     reward = 0
     done = False
     batch_size = 32
 
+    for e in range(200):
+        state = env.reset()
+        state = np.reshape(state, [1, 24])
+
+        for time_t in range(500):
+            action = agent.act(state)
+
+            next_state, reward, done, _ = env.step(action)
+            next_state = np.reshape(next_state, [1, 24])
+
+            agent.remember(state, action, reward, next_state, done)
+            state = next_state
+
+            if done:
+                # print the score and break out of the loop
+                print("episode: {}/{}, score: {}"
+                      .format(e, 200, time_t))
+
+                break
+
+        agent.replay(32)
+
+    print("STAMPONAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n\n\n\n\n\n\n\n")
+
     for e in range(EPISODES):
         state = env.reset()
         state = np.reshape(state, [1, state_size])
         for time in range(500):
-            # env.render()
+            env.render()
             action = agent.act(state)
             next_state, reward, done, _ = env.step(action)
             reward = reward if not done else -10
