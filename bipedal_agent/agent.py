@@ -39,7 +39,7 @@ class BipedalAgent(object):
         return model
 
     def take_four_maxes(self, array):
-        maxes = np.zeros(4, 2)
+        maxes = np.zeros(4, 3)
         half = len(array) / 2
         for joint_index, a in np.reshape(array, (4, 20)):
 
@@ -57,6 +57,7 @@ class BipedalAgent(object):
                 middle_bucket = -middle_bucket
 
             maxes[joint_index][1] = middle_bucket
+            maxes[joint_index][2] = max_index + (joint_index * max_index)
 
         print(maxes)
         return maxes
@@ -76,12 +77,16 @@ class BipedalAgent(object):
     def replay(self, batch_size):
         minibatch = random.sample(self.memory, batch_size)
         for state, action, reward, next_state, done in minibatch:
-            target = reward
+            target = [reward] * 4
             if not done:
-                target = (reward + self.gamma * (self.model.predict(next_state)[0]))  # Q function
-            target_f = self.model.predict(state)
-            target_f[0] = target
-            self.model.fit(state, target_f, epochs=1, verbose=0)
+                maxes = self.take_four_maxes(self.model.predict(next_state)[0])
+                target = (reward + self.gamma * (maxes[0]))  # Q function
+
+            nn_output = self.model.predict(state)
+            for index, max in maxes:
+                nn_output[0][max[2]] = target[index]
+
+            self.model.fit(state, nn_output, epochs=1, verbose=0)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
