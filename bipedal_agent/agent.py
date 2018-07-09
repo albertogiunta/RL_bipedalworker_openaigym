@@ -12,16 +12,22 @@ EPISODES = 1000
 
 class BipedalAgent(object):
 
-    def __init__(self, action_space, state_size):
+    def __init__(self, action_space):
         self.action_space = action_space
-        self.state_size = state_size
-        self.action_size = 4
+        self.state_size = 24
+
+        self.step_size = 0.5
+        self.joint_number = 4
+        self.action_size = 2/self.step_size * self.joint_number
+
         self.memory = deque(maxlen=2000)
+
         self.gamma = 0.95  # discount rate
         self.epsilon = 1.0  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.learning_rate = 0.001
+
         self.model = self._build_model()
 
     def _build_model(self):
@@ -32,15 +38,37 @@ class BipedalAgent(object):
         model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
         return model
 
+    def take_four_maxes(self, array):
+        maxes = np.zeros(4, 2)
+        half = len(array) / 2
+        for joint_index, a in np.reshape(array, (4, 20)):
+
+            max_index = np.argmax(a)
+            maxes[joint_index][0] = a[max_index]
+
+            if max_index < half:
+                partial_index = np.abs(max_index - half) - 1
+            else:
+                partial_index = max_index - half
+
+            middle_bucket = partial_index * self.step_size + (partial_index * self.step_size + self.step_size) / 2
+
+            if max_index < half:
+                middle_bucket = -middle_bucket
+
+            maxes[joint_index][1] = middle_bucket
+
+        print(maxes)
+        return maxes
+
     def act(self, state):
-        # if np.random.rand() <= self.epsilon:
-        #     print "random"
-        #     return self.action_space.sample()
-        print "random"
-        return self.action_space.sample()
-        # print "NOT RANDOM"
-        # act_values = self.model.predict(state)  # use NN to predict action
-        # return act_values  # returns action
+        if np.random.rand() <= self.epsilon:
+            print "random"
+            return self.action_space.sample()
+
+        print "NOT random"
+        act_values = self.model.predict(state)  # use NN to predict action
+        return np.transpose(self.take_four_maxes(act_values))[1]  # returns action
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -64,7 +92,7 @@ if __name__ == '__main__':
     env.render()
 
     state_size = env.observation_space.shape[0]
-    agent = BipedalAgent(env.action_space, state_size)
+    agent = BipedalAgent(env.action_space)
 
     episode_count = 100
     reward = 0
