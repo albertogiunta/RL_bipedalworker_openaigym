@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
         agent.replay(32)
 
-    print("--------- Finished training ---------")
+    print("\n--------- Finished training ---------\n")
 
     agent.epsilon = 1.0  # exploration rate
 
