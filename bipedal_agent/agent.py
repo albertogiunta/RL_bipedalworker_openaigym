@@ -5,6 +5,7 @@ from keras.layers import Dense
 from keras.optimizers import Adam
 import numpy as np
 import gym.spaces
+import matplotlib.pyplot as plt
 import gym
 from collections import deque
 
@@ -21,13 +22,13 @@ class BipedalAgent(object):
         self.output_size = self.actions_per_joint * self.joints_number
 
         self.memory = deque(maxlen=2000)
-        self.first_hl = 128
-        self.second_hl = 128
+        self.first_hl = 96
+        self.second_hl = 96
 
-        self.gamma = 0.95  # discount rate
+        self.gamma = 0.75  # discount rate
         self.epsilon = 1.0  # exploration rate
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995
+        self.epsilon_min = 0.1
+        self.epsilon_decay = 0.9999
         self.learning_rate = 0.001
 
         self.model = self._build_model()
@@ -128,7 +129,7 @@ if __name__ == '__main__':
     REINFORCEMENT_EPISODES = 1000
     reward = 0
     done = False
-    batch_size = 32
+    batch_size = 64
 
     for e in range(TRAINING_EPISODES):
         state = env.reset()
@@ -145,18 +146,23 @@ if __name__ == '__main__':
 
             if done:
                 # print the score and break out of the loop
-                print("episode: {}/{}, score: {}"
-                      .format(e, TRAINING_EPISODES, time_t))
+                #print("episode: {}/{}, score: {}"
+                      #.format(e, TRAINING_EPISODES, time_t))
 
                 break
-
+        print("episode: {}/{}, score: {}"
+              .format(e, TRAINING_EPISODES, time_t))
         agent.replay(32)
 
     print("\n--------- Finished training ---------\n")
 
     agent.epsilon = 1.0  # exploration rate
 
+    reward_arr = []
+
+
     for e in range(REINFORCEMENT_EPISODES):
+        reward_sum = 0
         state = env.reset()
         state = np.reshape(state, [1, state_size])
         for time in range(ACTIONS_PER_EPISODE):
@@ -164,14 +170,21 @@ if __name__ == '__main__':
             action = agent.act(state)
             next_state, reward, done, _ = env.step(action)
             reward = reward if not done else -10
+            reward_sum += reward
             next_state = np.reshape(next_state, [1, state_size])
             agent.remember(state, action, reward, next_state, done)
             state = next_state
             if done:
-                print("episode: {}/{}, score: {}, e: {:.2}"
-                      .format(e, REINFORCEMENT_EPISODES, time, agent.epsilon))
                 break
             if len(agent.memory) > batch_size:
                 agent.replay(batch_size)
+
+        reward_arr.append(reward_sum)
+        plt.plot(reward_arr)
+        plt.show()
+        plt.pause(0.0001)
+        print("episode: {}/{}, time: {}, reward: {}, e: {:.2}"
+            .format(e, REINFORCEMENT_EPISODES, time, reward_sum, agent.epsilon))
+
 
     env.env.close()
