@@ -24,7 +24,7 @@ class BipedalAgent(object):
         self.actions_per_joint = int(2 / self.step_size)
         self.output_size = self.actions_per_joint * self.joints_number
 
-        self.memory = deque(maxlen=2000)
+        self.memory = deque(maxlen=5000)
         self.first_hl = 96
         self.second_hl = 96
 
@@ -131,7 +131,7 @@ class BipedalAgent(object):
             nn_output[0][int(max[2])] = q_reward[index]
 
         # Addestro la rete con l'output ricalcolato
-        self.model.fit(state, nn_output, epochs=5, verbose=0)
+        self.model.fit(state, nn_output, epochs=10, verbose=0)
 
 
 if __name__ == '__main__':
@@ -143,11 +143,11 @@ if __name__ == '__main__':
     agent = BipedalAgent(env.action_space, state_size, step_size=0.05, joints_number=4)
 
     TRAINING_EPISODES = 200
-    ACTIONS_PER_EPISODE = 500
+    ACTIONS_PER_EPISODE = 250
     REINFORCEMENT_EPISODES = 1000
     reward = 0
     done = False
-    batch_size = 256
+    batch_size = 32
 
     for e in range(TRAINING_EPISODES):
         state = env.reset()
@@ -170,7 +170,8 @@ if __name__ == '__main__':
                 break
         print("episode: {}/{}, actions: {}"
               .format(e, TRAINING_EPISODES, action_t))
-        agent.replay(32)
+        if(len(agent.memory) > batch_size):
+            agent.replay(batch_size)
 
     print("\n--------- Finished training ---------\n")
 
