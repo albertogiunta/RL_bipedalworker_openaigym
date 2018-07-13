@@ -201,7 +201,7 @@ if __name__ == '__main__':
         interval = 10
         reward_arr.append(reward_sum)
         if len(reward_arr) > interval:
-            reward_arr_avg.append(np.average(reward_arr[:-interval]))
+            reward_arr_avg.append(np.average(reward_arr[-interval:]))
             plt.plot(reward_arr_avg)
             plt.show()
             plt.pause(0.0001)
