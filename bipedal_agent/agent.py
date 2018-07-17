@@ -1,6 +1,8 @@
 import random
 from threading import Thread
 
+import tensorflow as tf
+
 from keras import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
@@ -11,6 +13,9 @@ import multiprocessing
 import matplotlib.pyplot as plt
 import gym
 from collections import deque
+
+from keras import backend as K
+K.set_session(K.tf.Session(config=K.tf.ConfigProto(intra_op_parallelism_threads=18, inter_op_parallelism_threads=18)))
 
 class BipedalAgent(object):
 
@@ -30,7 +35,7 @@ class BipedalAgent(object):
 
         self.gamma = 0.75  # discount rate
         self.epsilon = 1.0  # exploration rate
-        self.epsilon_min = 0.5
+        self.epsilon_min = 0.1
         self.epsilon_decay = 0.995
         self.learning_rate = 0.001
 
@@ -131,7 +136,7 @@ class BipedalAgent(object):
             nn_output[0][int(max[2])] = q_reward[index]
 
         # Addestro la rete con l'output ricalcolato
-        self.model.fit(state, nn_output, epochs=10, verbose=0)
+        self.model.fit(state, nn_output, epochs=100, verbose=0)
 
 
 if __name__ == '__main__':
@@ -140,10 +145,10 @@ if __name__ == '__main__':
     # env.render()
 
     state_size = env.observation_space.shape[0]
-    agent = BipedalAgent(env.action_space, state_size, step_size=0.05, joints_number=4)
+    agent = BipedalAgent(env.action_space, state_size, step_size=0.01, joints_number=4)
 
     TRAINING_EPISODES = 200
-    ACTIONS_PER_EPISODE = 250
+    ACTIONS_PER_EPISODE = 500
     REINFORCEMENT_EPISODES = 1000
     reward = 0
     done = False
@@ -198,8 +203,8 @@ if __name__ == '__main__':
         if len(agent.memory) > batch_size:
             agent.replay(batch_size)
 
-        interval = 10
-        reward_arr.append(reward_sum)
+        interval = 20
+        rewa2rd_arr.append(reward_sum)
         if len(reward_arr) > interval:
             reward_arr_avg.append(np.average(reward_arr[-interval:]))
             plt.plot(reward_arr_avg)
